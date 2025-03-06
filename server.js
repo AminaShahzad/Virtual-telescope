@@ -16,7 +16,12 @@ async function connectDB() {
         await client.connect();
         console.log("✅ Connected to MongoDB Atlas");
         const db = client.db(dbName);
-        return db.collection(collectionName);
+        const collection = db.collection(collectionName);
+
+        // Ensure the index is created only once
+       collection.createIndex({ tel_name: 1 }, { unique: true });
+
+        return collection;
     } catch (error) {
         console.error("❌ Error connecting to MongoDB:", error);
     }
@@ -27,9 +32,17 @@ connectDB();
 // inserts record
 
 async function insertUser(user) {
-    const collection = await connectDB();
-    const result = await collection.insertOne(user);
-    console.log(`✅ User inserted with ID: ${result.insertedId}`);
+    try {
+        const collection = await connectDB();
+        const result = await collection.insertOne(user);
+        console.log(`✅ User inserted with ID: ${result.insertedId}`);
+    } catch (error) {
+        if (error.code === 11000) {
+            console.error("❌ Error: Telescope name must be unique!");
+        } else {
+            console.error("❌ Insert Error:", error);
+        }
+    }
 }
 
 
@@ -45,20 +58,43 @@ async function getUsers() {
 
 
 // updates user info 
-async function updateUser(id, newData) {
-    const collection = await connectDB();
-    const result = await collection.updateOne({ _id: new ObjectId(id) }, { $set: newData });
-    console.log(`✅ Modified ${result.modifiedCount} document(s)`);
+async function updateUser(tel_name, newData) {
+    try {
+        const collection = await connectDB();
+        const result = await collection.updateOne(
+            { tel_name: tel_name }, // Find by tel_name
+            { $set: newData } // Update fields
+        );
+
+        if (result.matchedCount === 0) {
+            console.log(`⚠️ No telescope found with name: ${tel_name}`);
+        } else {
+            console.log(`✅ Modified ${result.modifiedCount} document(s)`);
+        }
+    } catch (error) {
+        console.error("❌ Update Error:", error);
+    }
 }
+
 
 
 
 // delete rec from db 
-async function deleteUser(id) {
-    const collection = await connectDB();
-    const result = await collection.deleteOne({ _id: ObjectId(id)});
-    console.log(`❌ Deleted ${result.deletedCount} document(s)`);
+async function deleteUser(tel_name) {
+    try {
+        const collection = await connectDB();
+        const result = await collection.deleteOne({ tel_name: tel_name });
+
+        if (result.deletedCount === 0) {
+            console.log(`⚠️ No telescope found with name: ${tel_name}`);
+        } else {
+            console.log(`❌ Deleted ${result.deletedCount} document(s)`);
+        }
+    } catch (error) {
+        console.error("❌ Delete Error:", error);
+    }
 }
+
 
 // exporting functions so that i can use it in diff files 
 
