@@ -31,11 +31,11 @@ connectDB();
 
 // inserts record
 
-async function insertUser(user) {
+async function insertTelescope(tel) {
     try {
         const collection = await connectDB();
-        const result = await collection.insertOne(user);
-        console.log(`✅ User inserted with ID: ${result.insertedId}`);
+        const result = await collection.insertOne(tel);
+        console.log(`✅ Telescope inserted with ID: ${result.insertedId}`);
     } catch (error) {
         if (error.code === 11000) {
             console.error("❌ Error: Telescope name must be unique!");
@@ -48,17 +48,17 @@ async function insertUser(user) {
 
 
 // prints all records on console
-async function getUsers() {
+async function getTelescopes() {
     const collection = await connectDB();
-    const users = await collection.find({}).toArray();
-    console.log("📌 Users:", users);
+    const tels = await collection.find({}).toArray();
+    console.log("📌 Telescopes:", tels);
 }
 
 
 
 
 // updates user info 
-async function updateUser(tel_name, newData) {
+async function updateTelescope(tel_name, newData) {
     try {
         const collection = await connectDB();
         const result = await collection.updateOne(
@@ -80,7 +80,7 @@ async function updateUser(tel_name, newData) {
 
 
 // delete rec from db 
-async function deleteUser(tel_name) {
+async function deleteTelescope(tel_name) {
     try {
         const collection = await connectDB();
         const result = await collection.deleteOne({ tel_name: tel_name });
@@ -99,9 +99,9 @@ async function deleteUser(tel_name) {
 // exporting functions so that i can use it in diff files 
 
 module.exports = {
-    insertUser,
-    getUsers,
-    updateUser,
-    deleteUser,
+    insertTelescope,
+    getTelescopes,
+    updateTelescope,
+    deleteTelescope,
     ObjectId,  // Export ObjectId in case you need it in another file
 };
