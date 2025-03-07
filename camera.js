@@ -1,13 +1,13 @@
 const { MongoClient, ObjectId } = require("mongodb");
 
 // MongoDB Connection URI (Replace with your actual credentials)
-const uri = "mongodb+srv://aneeba:aneeba4201@cluster0.upbdo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const uri = "mongodb+srv://aminashahzadkhan:amina2004@cluster0.evdyr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 // MongoDB Client
 const client = new MongoClient(uri);
 
 // Database and Collection Names
-const dbName = "TelescopeDB";
+const dbName = "virtual_telescope";
 const collectionName = "camera";
 
 // Connect to MongoDB
