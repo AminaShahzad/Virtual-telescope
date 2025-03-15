@@ -23,7 +23,3 @@ app.listen(PORT, async () => {
     }
 });
 
-const { deleteUser } = require("./models/Users.js");
-
-// Delete a specific user
-deleteUser("aneebazafar4201@gmail.com");
