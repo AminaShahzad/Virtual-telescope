@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_gauges/gauges.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'firebase_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -10,11 +12,26 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final FirebaseService _firebaseService = FirebaseService();
+  String selectedAttribute = "temperature"; // Default selected attribute
+
+  // Define threshold values for different attributes
+  final Map<String, Map<String, dynamic>> thresholds = {
+    "temperature": {"low": 10, "moderate": 30, "high": 40, "danger": 45},
+    "humidity": {"low": 20, "moderate": 50, "high": 80, "danger": 90},
+    "mq135": {"low": 200, "moderate": 800, "high": 2000, "danger": 2500},
+    "pm1_0": {"low": 5, "moderate": 20, "high": 50, "danger": 60},
+    "pm2_5": {"low": 10, "moderate": 35, "high": 75, "danger": 100},
+    "pm10_0": {"low": 20, "moderate": 50, "high": 100, "danger": 150},
+  };
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Sensor Dashboard")),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: Text("Sensor Dashboard"),
+        backgroundColor: Colors.grey[900],
+      ),
       body: StreamBuilder<Map<String, dynamic>>(
         stream: _firebaseService.getSensorData(),
         builder: (context, snapshot) {
@@ -22,23 +39,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return Center(child: Text("Error: ${snapshot.error}", style: TextStyle(color: Colors.white)));
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text("No sensor data available"));
+            return Center(child: Text("No sensor data available", style: TextStyle(color: Colors.white)));
           }
 
           var data = snapshot.data!;
-          return SingleChildScrollView(
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SensorCard(label: "Temperature", value: "${data['temperature']}°C"),
-                SensorCard(label: "Humidity", value: "${data['humidity']}%"),
-                SensorCard(label: "MQ135 Gas Level", value: "${data['mq135']} ppm"),
-                SensorCard(label: "PM1.0", value: "${data['pm1_0']} µg/m³"),
-                SensorCard(label: "PM2.5", value: "${data['pm2_5']} µg/m³"),
-                SensorCard(label: "PM10.0", value: "${data['pm10_0']} µg/m³"),
+                // Sensor Gauges Row
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: thresholds.keys.map((attribute) {
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          selectedAttribute = attribute; // Update the selected attribute
+                        });
+                      },
+                      child: GaugeCard(
+                        label: attribute.toUpperCase(),
+                        value: data[attribute] ?? 0.0,
+                        unit: attribute.contains("pm") ? "µg/m³" : (attribute == "humidity" ? "%" : "°C"),
+                        maxValue: thresholds[attribute]!["danger"].toDouble(),
+                        thresholds: thresholds[attribute]!,
+                      ),
+                    );
+                  }).toList(),
+                ),
+
+                SizedBox(height: 20),
+
+                // Display selected attribute's graph
+                Expanded(
+                  child: LineChartWidget(
+                    data: data,
+                    selectedAttribute: selectedAttribute,
+                    thresholds: thresholds[selectedAttribute]!,
+                  ),
+                ),
               ],
             ),
           );
@@ -48,22 +92,130 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class SensorCard extends StatelessWidget {
+class GaugeCard extends StatelessWidget {
   final String label;
-  final String value;
+  final double value;
+  final String unit;
+  final double maxValue;
+  final Map<String, dynamic> thresholds;
 
-  const SensorCard({required this.label, required this.value});
+  const GaugeCard({required this.label, required this.value, required this.unit, required this.maxValue, required this.thresholds});
+
+  String getStatus() {
+    if (value < thresholds["low"]) return "Low";
+    if (value < thresholds["moderate"]) return "Moderate";
+    if (value < thresholds["high"]) return "High";
+    return "Danger";
+  }
+
+  Color getStatusColor() {
+    if (value < thresholds["low"]) return Colors.blueAccent;
+    if (value < thresholds["moderate"]) return Colors.green;
+    if (value < thresholds["high"]) return Colors.orange;
+    return Colors.red;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: EdgeInsets.all(10),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ListTile(
-        title: Text(label, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        trailing: Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+      color: Colors.grey[850],
+      child: Container(
+        width: 130,
+        height: 130,
+        child: Column(
+          children: [
+            Text(label, style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+            Expanded(
+              child: SfRadialGauge(axes: [
+                RadialAxis(minimum: 0, maximum: maxValue, ranges: [
+                  GaugeRange(startValue: 0, endValue: thresholds["low"], color: Colors.blueAccent),
+                  GaugeRange(startValue: thresholds["low"], endValue: thresholds["moderate"], color: Colors.green),
+                  GaugeRange(startValue: thresholds["moderate"], endValue: thresholds["high"], color: Colors.orange),
+                  GaugeRange(startValue: thresholds["high"], endValue: maxValue, color: Colors.red),
+                ], pointers: [
+                  NeedlePointer(value: value, needleColor: Colors.red)
+                ], annotations: [
+                  GaugeAnnotation(
+                    widget: Text("$value $unit\n${getStatus()}", style: TextStyle(color: getStatusColor(), fontSize: 12)),
+                    angle: 90,
+                    positionFactor: 0.5,
+                  ),
+                ])
+              ]),
+            ),
+          ],
+        ),
       ),
     );
+  }
+}
+
+class LineChartWidget extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final String selectedAttribute;
+  final Map<String, dynamic> thresholds;
+
+  const LineChartWidget({required this.data, required this.selectedAttribute, required this.thresholds});
+
+  @override
+  Widget build(BuildContext context) {
+    double value = data[selectedAttribute] ?? 0.0;
+    return Column(
+      children: [
+        Text("Graph of $selectedAttribute", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        SizedBox(height: 10),
+        Expanded(
+          child: LineChart(
+            LineChartData(
+              backgroundColor: Colors.grey[900],
+              gridData: FlGridData(show: true),
+              titlesData: FlTitlesData(
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: true, reservedSize: 40),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: true),
+                ),
+              ),
+              borderData: FlBorderData(show: true),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: [
+                    FlSpot(1, value),
+                    FlSpot(2, value * 1.05), // Sample points
+                    FlSpot(3, value * 0.95),
+                    FlSpot(4, value * 1.1),
+                  ],
+                  isCurved: true,
+                  color: Colors.blueAccent,
+                  barWidth: 4,
+                  isStrokeCapRound: true,
+                )
+              ],
+            ),
+          ),
+        ),
+        SizedBox(height: 10),
+        Text(
+          "Current Value: $value\nStatus: ${getStatus(value)}",
+          style: TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        if (value > thresholds["danger"]) // Show alert if in danger zone
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              "⚠ Warning! $selectedAttribute is in danger zone!",
+              style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+      ],
+    );
+  }
+
+  String getStatus(double value) {
+    if (value < thresholds["low"]) return "Low";
+    if (value < thresholds["moderate"]) return "Moderate";
+    if (value < thresholds["high"]) return "High";
+    return "Danger";
   }
 }
